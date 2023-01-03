@@ -11,9 +11,9 @@ import androidx.navigation.navArgument
 open class NavigationRoute(
     route: String,
     private val argsKeys: List<String> = listOf(),
+    private val navigationDebugLevel: NavigationDebugLevel = NavigationDebugLevel.MESSAGE,
 ) {
     val route = parseRoute(route, argsKeys)
-    private val navigationDebugLevel = NavigationDebugLevel.MESSAGE
 
     override fun toString(): String {
         return route
@@ -77,12 +77,16 @@ open class NavigationRoute(
     }
 
     @Composable
-    inline fun <reified T> rememberGetData(entry: NavBackStackEntry, key: String): T? {
+    inline fun <reified T> rememberGetData(key: String): T? {
+        val entry = LocalNavBackStackEntry.current
+
         return remember(entry) { getData(entry, key) }
     }
 
     @Composable
-    inline fun <reified T> rememberGetData(entry: NavBackStackEntry, key: String, defaultValue: T): T {
+    inline fun <reified T> rememberGetData(key: String, defaultValue: T): T {
+        val entry = LocalNavBackStackEntry.current
+
         return remember(entry) { getData(entry, key) ?: defaultValue }
     }
 }

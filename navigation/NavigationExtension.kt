@@ -1,6 +1,8 @@
 package com.uragiristereo.navigation.compose.extension
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.core.net.toUri
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDeepLink
@@ -13,6 +15,8 @@ import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.Navigator
 import androidx.navigation.compose.composable
 import androidx.navigation.navOptions
+
+val LocalNavBackStackEntry = compositionLocalOf<NavBackStackEntry> { error(message = "no NavBackStackEntry provided!") }
 
 fun NavHostController.navigate(
     route: NavigationRoute,
@@ -59,6 +63,13 @@ fun NavGraphBuilder.composable(
         route = route.route,
         arguments = route.getNamedNavArgs(),
         deepLinks = deepLinks,
-        content = { content(route, it) },
+        content = { entry ->
+            CompositionLocalProvider(
+                values = arrayOf(
+                    LocalNavBackStackEntry provides entry,
+                ),
+                content = { content(route) },
+            )
+        },
     )
 }

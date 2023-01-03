@@ -66,6 +66,8 @@ enum class NavigationDebugLevel {
 
 ```kotlin
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.core.net.toUri
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDeepLink
@@ -78,6 +80,8 @@ import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.Navigator
 import androidx.navigation.compose.composable
 import androidx.navigation.navOptions
+
+val LocalNavBackStackEntry = compositionLocalOf<NavBackStackEntry> { error(message = "no NavBackStackEntry provided!") }
 
 fun NavHostController.navigate(
     route: NavigationRoute,
@@ -124,7 +128,14 @@ fun NavGraphBuilder.composable(
         route = route.route,
         arguments = route.getNamedNavArgs(),
         deepLinks = deepLinks,
-        content = { content(route, it) },
+        content = { entry ->
+            CompositionLocalProvider(
+                values = arrayOf(
+                    LocalNavBackStackEntry provides entry,
+                ),
+                content = { content(route) },
+            )
+        },
     )
 }
 ```
@@ -148,9 +159,9 @@ import androidx.navigation.navArgument
 open class NavigationRoute(
     route: String,
     private val argsKeys: List<String> = listOf(),
+    private val navigationDebugLevel: NavigationDebugLevel = NavigationDebugLevel.MESSAGE,
 ) {
     val route = parseRoute(route, argsKeys)
-    private val navigationDebugLevel = NavigationDebugLevel.MESSAGE
 
     override fun toString(): String {
         return route
@@ -214,12 +225,16 @@ open class NavigationRoute(
     }
 
     @Composable
-    inline fun <reified T> rememberGetData(entry: NavBackStackEntry, key: String): T? {
+    inline fun <reified T> rememberGetData(key: String): T? {
+        val entry = LocalNavBackStackEntry.current
+
         return remember(entry) { getData(entry, key) }
     }
 
     @Composable
-    inline fun <reified T> rememberGetData(entry: NavBackStackEntry, key: String, defaultValue: T): T {
+    inline fun <reified T> rememberGetData(key: String, defaultValue: T): T {
+        val entry = LocalNavBackStackEntry.current
+
         return remember(entry) { getData(entry, key) ?: defaultValue }
     }
 }
@@ -235,7 +250,11 @@ open class NavigationRoute(
 sealed class MainRoute(
     route: String,
     argsKeys: List<String> = listOf(),
-) : NavigationRoute(route, argsKeys) {
+) : NavigationRoute(
+    route = route,
+    argsKeys = argsKeys,
+    navigationDebugLevel = NavigationDebugLevel.MESSAGE,
+) {
     object Home : MainRoute(route = "home")
 
     object Profile : MainRoute(
@@ -280,13 +299,13 @@ NavHost(
     
     composable(
         route = MainRoute.Profile,
-    ) { entry ->
+    ) {
         // set a default value to make it not nullable
-        val showDetails = rememberGetData(entry = entry, key = "show_details", defaultValue = false)
+        val showDetails = rememberGetData(key = "show_details", defaultValue = false)
         
         // cast type to make it nullable
-        val id = rememberGetData<Int>(entry = entry, key = "id")
-        val profile = rememberGetData<Profile>(entry = entry, key = "profile")
+        val id = rememberGetData<Int>(key = "id")
+        val profile = rememberGetData<Profile>(key = "profile")
         
         Column(
             verticalArrangement = Arrangement.CenterVertically,
@@ -322,7 +341,7 @@ mainNavController.navigate(
 
 ### Notes
 
-- You also able use this wrapper in another navigation library that based on `androidx.navigation:navigation-compose` like [Accompanist Navigation](https://google.github.io/accompanist/navigation-animation/) or [Material Motion for Jetpack Compose](https://github.com/fornewid/material-motion-compose), just extend the `NavGraphBuilder.composable` and match the parameters requirement for the library.
+- You also able use this wrapper in another navigation library that based on `androidx.navigation:navigation-compose` like [Accompanist Navigation](https://google.github.io/accompanist/navigation-animation/), just extend the `NavGraphBuilder.composable` and match the parameters requirement for the library.
 - If you forget to include some arguments when navigating, it will automatically returns null when you get the data and prints the error in logcat without crashing the app.
 - You may get a destination not found error when navigating with a large data that totals about more than 100 KB from encoded route, consider navigate with a small data first (like ids) then get the large data from a local database.
 - If you have a question, feedback, or improvements get in touch with me on [Telegram](https://t.me/uragiristereo) or Discord `uragiristereo#2791`
